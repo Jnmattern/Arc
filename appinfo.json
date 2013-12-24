@@ -1,0 +1,24 @@
+{
+  "uuid": "f2498724-6d94-4791-96bc-2bc182a0ffe6",
+  "shortName": "Arc 2.0",
+  "longName": "Arc 2.0",
+  "companyName": "Jnm",
+  "versionCode": 1,
+  "versionLabel": "1.0.0",
+  "watchapp": {
+    "watchface": true
+  },
+  "appKeys": {
+    "dummy": 0
+  },
+  "resources": {
+    "media": [
+      {
+        "characterRegex": "[ -/=°0-9a-z]",
+        "type": "font",
+        "name": "FONT_WILL_20",
+        "file": "fonts/Will.i.am.Shake.Spears.ttf"
+      }
+	]
+  }
+}
