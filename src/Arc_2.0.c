@@ -4,26 +4,27 @@
 #define INNER_CIRCLE_THICKNESS 15
 #define SPACE 5
 
-#define STACK_MAX_ELEMENTS 2000
+#define INFO_DURATION 1500
 
 static Window *window;
 static Layer *rootLayer;
 static Layer *layer;
 
-static int outerCircleOuterRadius, outerCircleInnerRadius;
-static int innerCircleOuterRadius, innerCircleInnerRadius;
-static int outerCirclePathRadius, innerCirclePathRadius;
-static int innerCircleMeanRadius;
+static int outerCircleOuterRadius = 71, outerCircleInnerRadius;
+static int innerCircleOuterRadius, innerCircleInnerRadius ;
 
 static int angle_180 = TRIG_MAX_ANGLE / 2;
 static int angle_90 = TRIG_MAX_ANGLE / 4;
 
 static int32_t min_a, min_a1, min_a2, hour_a, hour_a1, hour_a2;
-static int32_t minutesWidth, hourWidth;
+static int32_t minutesWidth = TRIG_MAX_ANGLE / 50;
+static int32_t hourWidth = TRIG_MAX_ANGLE / 30;
 
 static TextLayer *textLayer;
-static char text[20];
+static char date[20], info[20];
 static GFont font;
+
+static int step = 0;
 
 static const GPoint center = { 72, 84 };
 
@@ -96,9 +97,8 @@ static void updateScreen(Layer *layer, GContext *ctx) {
 	graphics_fill_circle(ctx, center, outerCircleOuterRadius);
 	graphics_context_set_fill_color(ctx, GColorBlack);
 	graphics_fill_circle(ctx, center, outerCircleInnerRadius);
-		
 	graphics_draw_arc(ctx, center, outerCircleOuterRadius+1, OUTER_CIRCLE_THICKNESS+2, min_a1, min_a2, GColorBlack);
-	
+
 	graphics_draw_arc(ctx, center, innerCircleOuterRadius, INNER_CIRCLE_THICKNESS, hour_a1, hour_a2, GColorWhite);
 }
 
@@ -113,8 +113,8 @@ static void calcAngles(struct tm *t) {
 }
 
 void setDate(struct tm *t) {
-	snprintf(text, 10, "%s %d/%d", weekDay[t->tm_wday], t->tm_mday, t->tm_mon+1);
-	text_layer_set_text(textLayer, text);
+	snprintf(date, 10, "%s %d/%d", weekDay[t->tm_wday], t->tm_mday, t->tm_mon+1);
+	text_layer_set_text(textLayer, date);
 }
 
 static void handleTick(struct tm *tick_time, TimeUnits units_changed) {
@@ -125,27 +125,45 @@ static void handleTick(struct tm *tick_time, TimeUnits units_changed) {
 	layer_mark_dirty(layer);
 }
 
-static void initVars() {
-	outerCircleOuterRadius = 71;
+static void timeHandler(void *data) {
+	switch (step) {
+		case 1:
+			step++;
+			BatteryChargeState charge = battery_state_service_peek();
+			snprintf(info, 10, "batt %d%%", (int)charge.charge_percent);
+			text_layer_set_text(textLayer, info);
+			app_timer_register(INFO_DURATION, timeHandler, NULL);
+			break;
+			
+		case 2:
+			layer_set_hidden(text_layer_get_layer(textLayer), true);
+			text_layer_set_text(textLayer, date);
+			step = 0;
+			break;
+	}
+}
+
+static void tapHandler(AccelAxisType axis, int32_t direction) {
+	if (step) return;
+	
+	step = 1;
+	light_enable_interaction();
+	layer_set_hidden(text_layer_get_layer(textLayer), false);
+	app_timer_register(INFO_DURATION, timeHandler, NULL);
+}
+
+static inline void initRadiuses() {
 	outerCircleInnerRadius = outerCircleOuterRadius - OUTER_CIRCLE_THICKNESS;
 	innerCircleOuterRadius = outerCircleInnerRadius - SPACE;
 	innerCircleInnerRadius = innerCircleOuterRadius - INNER_CIRCLE_THICKNESS;
-	
-	outerCirclePathRadius = outerCircleOuterRadius+5;
-	innerCirclePathRadius = outerCircleInnerRadius-2;
-	
-	innerCircleMeanRadius = (innerCircleOuterRadius + innerCircleInnerRadius) / 2;
-	
-	minutesWidth = TRIG_MAX_ANGLE / 50;
-	hourWidth = TRIG_MAX_ANGLE / 30;
 }
 
 static void init(void) {
 	time_t t;
 	struct tm *tm;
 	
-	initVars();
-
+	initRadiuses();
+	
 	window = window_create();
 	window_set_background_color(window, GColorBlack);
 	window_stack_push(window, false);
@@ -167,15 +185,19 @@ static void init(void) {
 	text_layer_set_background_color(textLayer, GColorClear);
 	text_layer_set_text_color(textLayer, GColorWhite);
 	text_layer_set_font(textLayer, font);
+	layer_set_hidden(text_layer_get_layer(textLayer), true);
 	layer_add_child(rootLayer, text_layer_get_layer(textLayer));
 	
 	setDate(tm);
 	calcAngles(tm);
 
 	tick_timer_service_subscribe(MINUTE_UNIT, handleTick);
+	
+	accel_tap_service_subscribe(tapHandler);
 }
 
 static void deinit(void) {
+	accel_tap_service_unsubscribe();
 	tick_timer_service_unsubscribe();
 	text_layer_destroy(textLayer);
 	fonts_unload_custom_font(font);

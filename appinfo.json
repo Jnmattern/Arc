@@ -4,7 +4,7 @@
   "longName": "Arc 2.0",
   "companyName": "Jnm",
   "versionCode": 1,
-  "versionLabel": "1.0.0",
+  "versionLabel": "1.0.1",
   "watchapp": {
     "watchface": true
   },
@@ -13,11 +13,17 @@
   },
   "resources": {
     "media": [
+	  {
+	  "menuIcon": true,
+	  "type": "png",
+	  "name": "IMAGE_MENU_ICON",
+	  "file": "images/menu_icon.png"
+	  },
       {
-        "characterRegex": "[ -/=°0-9a-z]",
+        "characterRegex": "[ /%0-9a-z]",
         "type": "font",
         "name": "FONT_WILL_20",
-        "file": "fonts/Will.i.am.Shake.Spears.ttf"
+        "file": "fonts/timeburner_regular.ttf"
       }
 	]
   }
