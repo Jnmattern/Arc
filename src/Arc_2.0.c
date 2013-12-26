@@ -4,7 +4,7 @@
 #define INNER_CIRCLE_THICKNESS 15
 #define SPACE 5
 
-#define INFO_DURATION 1500
+#define INFO_DURATION 1000
 
 static Window *window;
 static Layer *rootLayer;
@@ -20,6 +20,7 @@ static int32_t min_a, min_a1, min_a2, hour_a, hour_a1, hour_a2;
 static int32_t minutesWidth = TRIG_MAX_ANGLE / 50;
 static int32_t hourWidth = TRIG_MAX_ANGLE / 30;
 
+static GRect textFrame;
 static TextLayer *textLayer;
 static char date[20], info[20];
 static GFont font;
@@ -125,19 +126,54 @@ static void handleTick(struct tm *tick_time, TimeUnits units_changed) {
 	layer_mark_dirty(layer);
 }
 
+static void centerTextLayer(const char *text) {
+	GSize size;
+	static GRect newFrame;
+	static Layer *layer = NULL;
+
+	if (layer == NULL) {
+		layer = text_layer_get_layer(textLayer);
+		newFrame = textFrame;
+	}
+
+	size = graphics_text_layout_get_content_size(text, font, textFrame, GTextOverflowModeWordWrap, GTextAlignmentCenter);
+	newFrame.origin.y = 84-size.h/2;
+	layer_set_frame(text_layer_get_layer(textLayer), newFrame);
+	text_layer_set_text(textLayer, text);
+}
+
 static void timeHandler(void *data) {
+	static BatteryChargeState charge;
+	
+	step++;
 	switch (step) {
 		case 1:
-			step++;
-			BatteryChargeState charge = battery_state_service_peek();
+			// First show Date, already set in textLayer
+			light_enable_interaction();
+			centerTextLayer(date);
+			layer_set_hidden(text_layer_get_layer(textLayer), false);
+			app_timer_register(INFO_DURATION, timeHandler, NULL);
+			break;
+
+		case 2:
+			// Show battery percentage
+			charge = battery_state_service_peek();
 			snprintf(info, 10, "batt %d%%", (int)charge.charge_percent);
-			text_layer_set_text(textLayer, info);
+			centerTextLayer(info);
 			app_timer_register(INFO_DURATION, timeHandler, NULL);
 			break;
 			
-		case 2:
+		case 3:
+			// Show hour
+			clock_copy_time_string(info, 20);
+			centerTextLayer(info);
+			app_timer_register(INFO_DURATION, timeHandler, NULL);
+			break;
+			
+		case 4:
+			// Hide textLayer, reset it to Date
 			layer_set_hidden(text_layer_get_layer(textLayer), true);
-			text_layer_set_text(textLayer, date);
+			centerTextLayer(date);
 			step = 0;
 			break;
 	}
@@ -146,10 +182,7 @@ static void timeHandler(void *data) {
 static void tapHandler(AccelAxisType axis, int32_t direction) {
 	if (step) return;
 	
-	step = 1;
-	light_enable_interaction();
-	layer_set_hidden(text_layer_get_layer(textLayer), false);
-	app_timer_register(INFO_DURATION, timeHandler, NULL);
+	timeHandler(NULL);
 }
 
 static inline void initRadiuses() {
@@ -177,9 +210,10 @@ static void init(void) {
 	layer_set_update_proc(layer, updateScreen);
 	layer_add_child(rootLayer, layer);
 	
-	font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WILL_20));
+	font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIMEBURNER_20));
 	
-	textLayer = text_layer_create(GRect(72-innerCircleInnerRadius, 60, 2*innerCircleInnerRadius, 60));
+	textFrame = GRect(72-innerCircleInnerRadius, 60, 2*innerCircleInnerRadius, 60);
+	textLayer = text_layer_create(textFrame);
 	text_layer_set_text_alignment(textLayer, GTextAlignmentCenter);
 	text_layer_set_overflow_mode(textLayer, GTextOverflowModeWordWrap);
 	text_layer_set_background_color(textLayer, GColorClear);

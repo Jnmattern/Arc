@@ -20,9 +20,9 @@
 	  "file": "images/menu_icon.png"
 	  },
       {
-        "characterRegex": "[ /%0-9a-z]",
+        "characterRegex": "[ :/%0-9a-z]",
         "type": "font",
-        "name": "FONT_WILL_20",
+        "name": "FONT_TIMEBURNER_20",
         "file": "fonts/timeburner_regular.ttf"
       }
 	]
