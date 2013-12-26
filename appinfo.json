@@ -4,7 +4,7 @@
   "longName": "Arc 2.0",
   "companyName": "Jnm",
   "versionCode": 1,
-  "versionLabel": "1.0.1",
+  "versionLabel": "1.0.2",
   "watchapp": {
     "watchface": true
   },
@@ -20,7 +20,6 @@
 	  "file": "images/menu_icon.png"
 	  },
       {
-        "characterRegex": "[ :/%0-9a-z]",
         "type": "font",
         "name": "FONT_TIMEBURNER_20",
         "file": "fonts/timeburner_regular.ttf"

@@ -149,7 +149,7 @@ static void timeHandler(void *data) {
 	switch (step) {
 		case 1:
 			// First show Date, already set in textLayer
-			light_enable_interaction();
+			light_enable(true);
 			centerTextLayer(date);
 			layer_set_hidden(text_layer_get_layer(textLayer), false);
 			app_timer_register(INFO_DURATION, timeHandler, NULL);
@@ -164,14 +164,26 @@ static void timeHandler(void *data) {
 			break;
 			
 		case 3:
+			// Show BT status
+			if (bluetooth_connection_service_peek()) {
+				strcpy(info, "BT ok");
+			} else {
+				strcpy(info, "BT failed");
+			}
+			centerTextLayer(info);
+			app_timer_register(INFO_DURATION, timeHandler, NULL);
+			break;
+
+		case 4:
 			// Show hour
 			clock_copy_time_string(info, 20);
 			centerTextLayer(info);
 			app_timer_register(INFO_DURATION, timeHandler, NULL);
 			break;
 			
-		case 4:
+		case 5:
 			// Hide textLayer, reset it to Date
+			light_enable(false);
 			layer_set_hidden(text_layer_get_layer(textLayer), true);
 			centerTextLayer(date);
 			step = 0;
