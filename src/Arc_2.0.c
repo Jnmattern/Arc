@@ -18,7 +18,7 @@ static int angle_90 = TRIG_MAX_ANGLE / 4;
 
 static int32_t min_a, min_a1, min_a2, hour_a, hour_a1, hour_a2;
 static int32_t minutesWidth = TRIG_MAX_ANGLE / 50;
-static int32_t hourWidth = TRIG_MAX_ANGLE / 30;
+static int32_t hourWidth = TRIG_MAX_ANGLE / 24;
 
 static GRect textFrame;
 static TextLayer *textLayer;
@@ -94,6 +94,7 @@ static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thic
 		if (t < ymin) ymin = t;
 		if (t > ymax) ymax = t;
 		
+		// Normalization
 		xmin /= TRIG_MAX_RATIO;
 		xmax /= TRIG_MAX_RATIO;
 		ymin /= TRIG_MAX_RATIO;
@@ -207,11 +208,11 @@ static void timeHandler(void *data) {
 			break;
 			
 		case 3:
-			// Show BT status
+			// Show Phone connection status
 			if (bluetooth_connection_service_peek()) {
-				strcpy(info, "BT ok");
+				strcpy(info, "phone ok");
 			} else {
-				strcpy(info, "BT failed");
+				strcpy(info, "phone failed");
 			}
 			centerTextLayer(info);
 			app_timer_register(INFO_DURATION, timeHandler, NULL);
