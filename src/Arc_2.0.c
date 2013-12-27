@@ -5,6 +5,23 @@
 #define SPACE 5
 
 #define INFO_DURATION 1000
+#define INFO_LONG_DURATION 2000
+
+// Languages
+#define LANG_DUTCH 0
+#define LANG_ENGLISH 1
+#define LANG_FRENCH 2
+#define LANG_GERMAN 3
+#define LANG_SPANISH 4
+#define LANG_PORTUGUESE 5
+#define LANG_SWEDISH 6
+#define LANG_MAX 7
+
+enum {
+	CONFIG_KEY_DATEORDER = 1852,
+	CONFIG_KEY_LANG = 1853
+};
+
 
 static Window *window;
 static Layer *rootLayer;
@@ -29,8 +46,18 @@ static int step = 0;
 
 static const GPoint center = { 72, 84 };
 
-const char weekDay[7][4] = {
-	"dim", "lun", "mar", "mer", "jeu", "ven", "sam"
+// Days of the week in all languages
+static int curLang = LANG_ENGLISH;
+static int USDate = 1;
+
+const char weekDay[LANG_MAX][7][6] = {
+	{ "zon", "maa", "din", "woe", "don", "vri", "zat" },	// Dutch
+	{ "sun", "mon", "tue", "wed", "thu", "fri", "sat" },	// English
+	{ "dim", "lun", "mar", "mer", "jeu", "ven", "sam" },	// French
+	{ "son", "mon", "die", "mit", "don", "fre", "sam" },	// German
+	{ "dom", "lun", "mar", "mie", "jue", "vie", "sab" },	// Spanish
+	{ "dom", "seg", "ter", "qua", "qui", "sex", "sab" },	// Portuguese
+	{ "sön", "mån", "Tis", "ons", "tor", "fre", "lör" }	// Swedish
 };
 
 
@@ -158,7 +185,11 @@ static void calcAngles(struct tm *t) {
 }
 
 void setDate(struct tm *t) {
-	snprintf(date, 10, "%s %d/%d", weekDay[t->tm_wday], t->tm_mday, t->tm_mon+1);
+	if (USDate) {
+		snprintf(date, 10, "%s\n%d/%d", weekDay[curLang][t->tm_wday], t->tm_mon+1, t->tm_mday);
+	} else {
+		snprintf(date, 10, "%s\n%d/%d", weekDay[curLang][t->tm_wday], t->tm_mday, t->tm_mon+1);
+	}
 	text_layer_set_text(textLayer, date);
 }
 
@@ -222,10 +253,27 @@ static void timeHandler(void *data) {
 			// Show hour
 			clock_copy_time_string(info, 20);
 			centerTextLayer(info);
-			app_timer_register(INFO_DURATION, timeHandler, NULL);
+			app_timer_register(INFO_LONG_DURATION, timeHandler, NULL);
 			break;
 			
 		case 5:
+			// Hide textLayer, reset it to Date
+			light_enable(false);
+			layer_set_hidden(text_layer_get_layer(textLayer), true);
+			centerTextLayer(date);
+			step = 0;
+			break;
+			
+		case 101:
+			// Display config saved message
+			light_enable(true);
+			strcpy(info, "config saved");
+			centerTextLayer(info);
+			layer_set_hidden(text_layer_get_layer(textLayer), false);
+			app_timer_register(INFO_LONG_DURATION, timeHandler, NULL);
+			break;
+			
+		case 102:
 			// Hide textLayer, reset it to Date
 			light_enable(false);
 			layer_set_hidden(text_layer_get_layer(textLayer), true);
@@ -247,12 +295,84 @@ static inline void initRadiuses() {
 	innerCircleInnerRadius = innerCircleOuterRadius - INNER_CIRCLE_THICKNESS;
 }
 
+static void applyConfig() {
+	time_t t = time(NULL);
+	setDate(localtime(&t));
+	step = 100;
+	timeHandler(NULL);
+}
+
+static void logVariables(const char *msg) {
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "MSG: %s\n\tUSDate=%d\n\tcurLang=%d\n", msg, USDate, curLang);
+}
+
+static bool checkAndSaveInt(int *var, int val, int key) {
+	status_t ret;
+	
+	if (*var != val) {
+		*var = val;
+		ret = persist_write_int(key, val);
+		if (ret < 0) APP_LOG(APP_LOG_LEVEL_DEBUG, "ERROR: persist_write_int returned %d", (int)ret);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+void in_dropped_handler(AppMessageResult reason, void *context) {
+}
+
+void in_received_handler(DictionaryIterator *received, void *context) {
+	bool somethingChanged = false;
+
+	Tuple *dateorder = dict_find(received, CONFIG_KEY_DATEORDER);
+	Tuple *lang = dict_find(received, CONFIG_KEY_LANG);
+	
+	if (dateorder && lang) {
+		somethingChanged |= checkAndSaveInt(&USDate, dateorder->value->int32, CONFIG_KEY_DATEORDER);
+		somethingChanged |= checkAndSaveInt(&curLang, lang->value->int32, CONFIG_KEY_LANG);
+		
+		logVariables("ReceiveHandler");
+		
+		if (somethingChanged) {
+			applyConfig();
+		}
+	}
+}
+
+
+void readConfig() {
+	if (persist_exists(CONFIG_KEY_DATEORDER)) {
+		USDate = persist_read_int(CONFIG_KEY_DATEORDER);
+	} else {
+		USDate = 1;
+	}
+
+	if (persist_exists(CONFIG_KEY_LANG)) {
+		curLang = persist_read_int(CONFIG_KEY_LANG);
+	} else {
+		curLang = LANG_ENGLISH;
+	}
+	
+	logVariables("readConfig");
+}
+
+static void app_message_init(void) {
+	app_message_register_inbox_received(in_received_handler);
+	app_message_register_inbox_dropped(in_dropped_handler);
+	app_message_open(64, 64);
+}
+
+
 static void init(void) {
 	time_t t;
 	struct tm *tm;
 	
 	initRadiuses();
 	
+	app_message_init();
+	readConfig();
+
 	window = window_create();
 	window_set_background_color(window, GColorBlack);
 	window_stack_push(window, false);
