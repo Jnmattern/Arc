@@ -33,17 +33,15 @@ const char weekDay[7][4] = {
 	"dim", "lun", "mar", "mer", "jeu", "ven", "sam"
 };
 
-static inline GColor graphics_get_pixel(GContext *ctx, GPoint p) {
-	GBitmap *bmp = (GBitmap *)ctx;
-    if (p.x >= bmp->bounds.size.w || p.y >= bmp->bounds.size.h || p.x < 0 || p.y < 0) return -1;
-    int byteoffset = p.y*bmp->row_size_bytes + p.x/8;
-    return ((((uint8_t *)bmp->addr)[byteoffset] & (1<<(p.x%8))) != 0);
-}
 
 /*\
 |*| DrawArc function thanks to Cameron MacFarland (http://forums.getpebble.com/profile/12561/Cameron%20MacFarland)
 \*/
 static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thickness, int start_angle, int end_angle, GColor c) {
+	int32_t xmin = 65535000, xmax = -65535000, ymin = 65535000, ymax = -65535000;
+	int32_t cosStart, sinStart, cosEnd, sinEnd;
+	int32_t r, t;
+	
 	while (start_angle < 0) start_angle += TRIG_MAX_ANGLE;
 	while (end_angle < 0) end_angle += TRIG_MAX_ANGLE;
 
@@ -56,8 +54,53 @@ static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thic
 		graphics_draw_arc(ctx, center, radius, thickness, start_angle, TRIG_MAX_ANGLE, c);
 		graphics_draw_arc(ctx, center, radius, thickness, 0, end_angle, c);
 	} else {
-		float sslope = (float)cos_lookup(start_angle) / (float)sin_lookup(start_angle);
-		float eslope = (float)cos_lookup(end_angle) / (float)sin_lookup(end_angle);
+		// Calculate bounding box for the arc to be drawn
+		cosStart = cos_lookup(start_angle);
+		sinStart = sin_lookup(start_angle);
+		cosEnd = cos_lookup(end_angle);
+		sinEnd = sin_lookup(end_angle);
+		
+		r = radius;
+		// Point 1: radius & start_angle
+		t = r * cosStart;
+		if (t < xmin) xmin = t;
+		if (t > xmax) xmax = t;
+		t = r * sinStart;
+		if (t < ymin) ymin = t;
+		if (t > ymax) ymax = t;
+
+		// Point 2: radius & end_angle
+		t = r * cosEnd;
+		if (t < xmin) xmin = t;
+		if (t > xmax) xmax = t;
+		t = r * sinEnd;
+		if (t < ymin) ymin = t;
+		if (t > ymax) ymax = t;
+		
+		r = radius - thickness;
+		// Point 3: radius-thickness & start_angle
+		t = r * cosStart;
+		if (t < xmin) xmin = t;
+		if (t > xmax) xmax = t;
+		t = r * sinStart;
+		if (t < ymin) ymin = t;
+		if (t > ymax) ymax = t;
+
+		// Point 4: radius-thickness & end_angle
+		t = r * cosEnd;
+		if (t < xmin) xmin = t;
+		if (t > xmax) xmax = t;
+		t = r * sinEnd;
+		if (t < ymin) ymin = t;
+		if (t > ymax) ymax = t;
+		
+		xmin /= TRIG_MAX_RATIO;
+		xmax /= TRIG_MAX_RATIO;
+		ymin /= TRIG_MAX_RATIO;
+		ymax /= TRIG_MAX_RATIO;
+		
+		float sslope = (float)cosStart/ (float)sinStart;
+		float eslope = (float)cosEnd / (float)sinEnd;
 	 
 		if (end_angle == TRIG_MAX_ANGLE) eslope = -1000000;
 	 
@@ -66,8 +109,8 @@ static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thic
 	 
 		graphics_context_set_stroke_color(ctx, c);
 
-		for (int x = -radius; x <= radius; x++) {
-			for (int y = -radius; y <= radius; y++)
+		for (int x = xmin; x <= xmax; x++) {
+			for (int y = ymin; y <= ymax; y++)
 			{
 				int x2 = x * x;
 				int y2 = y * y;
