@@ -32,6 +32,7 @@ static int innerCircleOuterRadius, innerCircleInnerRadius ;
 
 static int angle_90 = TRIG_MAX_ANGLE / 4;
 static int angle_180 = TRIG_MAX_ANGLE / 2;
+static int angle_270 = 3 * TRIG_MAX_ANGLE / 4;
 
 static int32_t min_a, min_a1, min_a2, hour_a, hour_a1, hour_a2;
 static int32_t minutesWidth = TRIG_MAX_ANGLE / 50;
