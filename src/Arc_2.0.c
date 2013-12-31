@@ -205,7 +205,7 @@ void setDate(struct tm *t) {
 	} else {
 		snprintf(date, 10, "%s\n%d/%d", weekDay[curLang][t->tm_wday], t->tm_mday, t->tm_mon+1);
 	}
-	text_layer_set_text(textLayer, date);
+	//text_layer_set_text(textLayer, date);
 }
 
 static void handleTick(struct tm *tick_time, TimeUnits units_changed) {
@@ -238,18 +238,17 @@ static void timeHandler(void *data) {
 	step++;
 	switch (step) {
 		case 1:
-			// First show Date, already set in textLayer
 			light_enable(true);
-			centerTextLayer(date);
+			// Show hour
+			clock_copy_time_string(info, 20);
+			centerTextLayer(info);
 			layer_set_hidden(text_layer_get_layer(textLayer), false);
-			app_timer_register(INFO_DURATION, timeHandler, NULL);
+			app_timer_register(INFO_LONG_DURATION, timeHandler, NULL);
 			break;
 
 		case 2:
-			// Show battery percentage
-			charge = battery_state_service_peek();
-			snprintf(info, 10, "batt %d%%", (int)charge.charge_percent);
-			centerTextLayer(info);
+			// Show Date
+			centerTextLayer(date);
 			app_timer_register(INFO_DURATION, timeHandler, NULL);
 			break;
 			
@@ -265,10 +264,11 @@ static void timeHandler(void *data) {
 			break;
 
 		case 4:
-			// Show hour
-			clock_copy_time_string(info, 20);
+			// Show battery percentage
+			charge = battery_state_service_peek();
+			snprintf(info, 10, "batt %d%%", (int)charge.charge_percent);
 			centerTextLayer(info);
-			app_timer_register(INFO_LONG_DURATION, timeHandler, NULL);
+			app_timer_register(INFO_DURATION, timeHandler, NULL);
 			break;
 			
 		case 5:
@@ -324,6 +324,8 @@ static void logVariables(const char *msg) {
 static bool checkAndSaveInt(int *var, int val, int key) {
 	status_t ret;
 	
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "CheckAndSaveInt : var=%d, val=%d, key=%d", *var, val, key);
+	
 	if (*var != val) {
 		*var = val;
 		ret = persist_write_int(key, val);
@@ -360,12 +362,14 @@ void readConfig() {
 	if (persist_exists(CONFIG_KEY_DATEORDER)) {
 		USDate = persist_read_int(CONFIG_KEY_DATEORDER);
 	} else {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "persist_exists(CONFIG_KEY_DATEORDER) returned false");
 		USDate = 1;
 	}
 
 	if (persist_exists(CONFIG_KEY_LANG)) {
 		curLang = persist_read_int(CONFIG_KEY_LANG);
 	} else {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "persist_exists(CONFIG_KEY_LANG) returned false");
 		curLang = LANG_ENGLISH;
 	}
 	
@@ -384,9 +388,9 @@ static void init(void) {
 	struct tm *tm;
 	
 	initRadiuses();
-	
-	app_message_init();
+
 	readConfig();
+	app_message_init();
 
 	window = window_create();
 	window_set_background_color(window, GColorBlack);
