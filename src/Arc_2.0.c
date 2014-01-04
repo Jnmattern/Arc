@@ -19,7 +19,8 @@
 
 enum {
 	CONFIG_KEY_DATEORDER = 1852,
-	CONFIG_KEY_LANG = 1853
+	CONFIG_KEY_LANG = 1853,
+	CONFIG_KEY_BACKLIGHT = 1854
 };
 
 
@@ -50,6 +51,7 @@ static const GPoint center = { 72, 84 };
 // Days of the week in all languages
 static int curLang = LANG_ENGLISH;
 static int USDate = 1;
+static int backlight = 0;
 
 const char weekDay[LANG_MAX][7][6] = {
 	{ "zon", "maa", "din", "woe", "don", "vri", "zat" },	// Dutch
@@ -203,7 +205,7 @@ void setDate(struct tm *t) {
 	if (USDate) {
 		snprintf(date, 10, "%s\n%d/%d", weekDay[curLang][t->tm_wday], t->tm_mon+1, t->tm_mday);
 	} else {
-		snprintf(date, 10, "%s\n%d/%d", weekDay[curLang][t->tm_wday], t->tm_mday, t->tm_mon+1);
+		snprintf(date, 10, "%s\n%d/%.2d", weekDay[curLang][t->tm_wday], t->tm_mday, t->tm_mon+1);
 	}
 	//text_layer_set_text(textLayer, date);
 }
@@ -238,12 +240,17 @@ static void timeHandler(void *data) {
 	step++;
 	switch (step) {
 		case 1:
-			light_enable(true);
+			APP_LOG(APP_LOG_LEVEL_DEBUG, "timeHandler: backlight=%d", backlight);
+			
+			if (backlight) {
+				light_enable(true);
+			}
+
 			// Show hour
 			clock_copy_time_string(info, 20);
 			centerTextLayer(info);
 			layer_set_hidden(text_layer_get_layer(textLayer), false);
-			app_timer_register(INFO_LONG_DURATION, timeHandler, NULL);
+			app_timer_register(INFO_DURATION, timeHandler, NULL);
 			break;
 
 		case 2:
@@ -273,7 +280,9 @@ static void timeHandler(void *data) {
 			
 		case 5:
 			// Hide textLayer, reset it to Date
-			light_enable(false);
+			if (backlight) {
+				light_enable(false);
+			}
 			layer_set_hidden(text_layer_get_layer(textLayer), true);
 			centerTextLayer(date);
 			step = 0;
@@ -281,7 +290,9 @@ static void timeHandler(void *data) {
 			
 		case 101:
 			// Display config saved message
-			light_enable(true);
+			if (backlight) {
+				light_enable(true);
+			}
 			strcpy(info, "config saved");
 			centerTextLayer(info);
 			layer_set_hidden(text_layer_get_layer(textLayer), false);
@@ -290,7 +301,10 @@ static void timeHandler(void *data) {
 			
 		case 102:
 			// Hide textLayer, reset it to Date
-			light_enable(false);
+			if (backlight) {
+				light_enable(false);
+			}
+
 			layer_set_hidden(text_layer_get_layer(textLayer), true);
 			centerTextLayer(date);
 			step = 0;
@@ -318,7 +332,7 @@ static void applyConfig() {
 }
 
 static void logVariables(const char *msg) {
-	APP_LOG(APP_LOG_LEVEL_DEBUG, "MSG: %s\n\tUSDate=%d\n\tcurLang=%d\n", msg, USDate, curLang);
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "MSG: %s\n\tUSDate=%d\n\tcurLang=%d\n\tbacklight=%d\n", msg, USDate, curLang, backlight);
 }
 
 static bool checkAndSaveInt(int *var, int val, int key) {
@@ -344,10 +358,12 @@ void in_received_handler(DictionaryIterator *received, void *context) {
 
 	Tuple *dateorder = dict_find(received, CONFIG_KEY_DATEORDER);
 	Tuple *lang = dict_find(received, CONFIG_KEY_LANG);
+	Tuple *light = dict_find(received, CONFIG_KEY_BACKLIGHT);
 	
-	if (dateorder && lang) {
+	if (dateorder && lang && light) {
 		somethingChanged |= checkAndSaveInt(&USDate, dateorder->value->int32, CONFIG_KEY_DATEORDER);
 		somethingChanged |= checkAndSaveInt(&curLang, lang->value->int32, CONFIG_KEY_LANG);
+		somethingChanged |= checkAndSaveInt(&backlight, light->value->int32, CONFIG_KEY_BACKLIGHT);
 		
 		logVariables("ReceiveHandler");
 		
@@ -371,6 +387,13 @@ void readConfig() {
 	} else {
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "persist_exists(CONFIG_KEY_LANG) returned false");
 		curLang = LANG_ENGLISH;
+	}
+	
+	if (persist_exists(CONFIG_KEY_BACKLIGHT)) {
+		backlight = persist_read_int(CONFIG_KEY_BACKLIGHT);
+	} else {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "persist_exists(CONFIG_KEY_BACKLIGHT) returned false");
+		backlight = 0;
 	}
 	
 	logVariables("readConfig");

@@ -4,14 +4,15 @@
   "longName": "Arc 2.0",
   "companyName": "Jnm",
   "versionCode": 1,
-  "versionLabel": "1.1.2",
+  "versionLabel": "1.1.3",
   "watchapp": {
     "watchface": true
   },
   "capabilities": [ "configurable" ],
   "appKeys": {
 	"dateorder":	1852,
-    "lang":			1853
+    "lang":			1853,
+	"backlight":	1854
   },
   "resources": {
     "media": [
