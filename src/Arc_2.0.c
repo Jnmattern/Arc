@@ -6,6 +6,7 @@
 
 #define INFO_DURATION 1000
 #define INFO_LONG_DURATION 2000
+#define INFO_BT_LOST_DURATION 5000
 
 // Languages
 #define LANG_DUTCH 0
@@ -16,6 +17,10 @@
 #define LANG_PORTUGUESE 5
 #define LANG_SWEDISH 6
 #define LANG_MAX 7
+
+#define STEP_DISPLAY_INFO 0
+#define STEP_DISPLAY_CONFIG_APPLIED 100
+#define STEP_DISPLAY_BT_LOST 200
 
 enum {
 	CONFIG_KEY_DATEORDER = 1852,
@@ -44,7 +49,7 @@ static TextLayer *textLayer;
 static char date[20], info[20];
 static GFont font;
 
-static int step = 0;
+static int step = STEP_DISPLAY_INFO;
 
 static const GPoint center = { 72, 84 };
 
@@ -54,7 +59,7 @@ static int USDate = 1;
 static int backlight = 0;
 
 //BT Connection
-static bool bluetooth_connected = false;
+static bool bluetoothConnected = false;
 
 const char weekDay[LANG_MAX][7][6] = {
 	{ "zon", "maa", "din", "woe", "don", "vri", "zat" },	// Dutch
@@ -243,7 +248,7 @@ static void timeHandler(void *data) {
 	step++;
 	switch (step) {
 		case 1:
-			APP_LOG(APP_LOG_LEVEL_DEBUG, "timeHandler: backlight=%d", backlight);
+			//APP_LOG(APP_LOG_LEVEL_DEBUG, "timeHandler: backlight=%d", backlight);
 			
 			if (backlight) {
 				light_enable(true);
@@ -312,25 +317,53 @@ static void timeHandler(void *data) {
 			centerTextLayer(date);
 			step = 0;
 			break;
+			
+		case 201:
+			// Display config saved message
+			if (backlight) {
+				light_enable(true);
+			}
+			if (bluetoothConnected) {
+				strcpy(info, "Phone ok");
+			} else {
+				strcpy(info, "Phone failed");
+			}
+			centerTextLayer(info);
+			layer_set_hidden(text_layer_get_layer(textLayer), false);
+			app_timer_register(INFO_BT_LOST_DURATION, timeHandler, NULL);
+			break;
+			
+		case 202:
+			// Hide textLayer, reset it to Date
+			if (backlight) {
+				light_enable(false);
+			}
+
+			layer_set_hidden(text_layer_get_layer(textLayer), true);
+			centerTextLayer(date);
+			step = STEP_DISPLAY_INFO;
+			break;
 	}
 }
 
 
-void update_connection() {
-  if (bluetooth_connected) {
-  } else {
-                static const uint32_t const segments[] = { 400, 100, 400 };
-                VibePattern pat = {
-                .durations = segments,
-                .num_segments = ARRAY_LENGTH(segments),
-                };
-                vibes_enqueue_custom_pattern(pat);
-  }
+void updateConnection() {
+	static const uint32_t const segments[] = { 400, 100, 400 };
+	static VibePattern pat = {
+		.durations = segments,
+		.num_segments = ARRAY_LENGTH(segments),
+	};
+	
+	if (!bluetoothConnected) {
+		vibes_enqueue_custom_pattern(pat);
+	}
+	step = 200;
+	timeHandler(NULL);
 }
 
-static void handle_bluetooth(bool connected) {
-  bluetooth_connected = connected;
-  update_connection();
+static void handleBluetooth(bool connected) {
+	bluetoothConnected = connected;
+	updateConnection();
 }
 
 static void tapHandler(AccelAxisType axis, int32_t direction) {
@@ -372,6 +405,7 @@ static bool checkAndSaveInt(int *var, int val, int key) {
 }
 
 void in_dropped_handler(AppMessageResult reason, void *context) {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "in_dropped_handler, reason: %d", reason);
 }
 
 void in_received_handler(DictionaryIterator *received, void *context) {
@@ -467,10 +501,11 @@ static void init(void) {
 	tick_timer_service_subscribe(MINUTE_UNIT, handleTick);
 	
 	accel_tap_service_subscribe(tapHandler);
-	bluetooth_connection_service_subscribe(&handle_bluetooth);
+	bluetooth_connection_service_subscribe(handleBluetooth);
 }
 
 static void deinit(void) {
+	bluetooth_connection_service_unsubscribe();
 	accel_tap_service_unsubscribe();
 	tick_timer_service_unsubscribe();
 	text_layer_destroy(textLayer);
