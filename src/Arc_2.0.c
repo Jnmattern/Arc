@@ -53,6 +53,9 @@ static int curLang = LANG_ENGLISH;
 static int USDate = 1;
 static int backlight = 0;
 
+//BT Connection
+static bool bluetooth_connected = false;
+
 const char weekDay[LANG_MAX][7][6] = {
 	{ "zon", "maa", "din", "woe", "don", "vri", "zat" },	// Dutch
 	{ "sun", "mon", "tue", "wed", "thu", "fri", "sat" },	// English
@@ -312,6 +315,24 @@ static void timeHandler(void *data) {
 	}
 }
 
+
+void update_connection() {
+  if (bluetooth_connected) {
+  } else {
+                static const uint32_t const segments[] = { 400, 100, 400 };
+                VibePattern pat = {
+                .durations = segments,
+                .num_segments = ARRAY_LENGTH(segments),
+                };
+                vibes_enqueue_custom_pattern(pat);
+  }
+}
+
+static void handle_bluetooth(bool connected) {
+  bluetooth_connected = connected;
+  update_connection();
+}
+
 static void tapHandler(AccelAxisType axis, int32_t direction) {
 	if (step) return;
 	
@@ -446,6 +467,7 @@ static void init(void) {
 	tick_timer_service_subscribe(MINUTE_UNIT, handleTick);
 	
 	accel_tap_service_subscribe(tapHandler);
+	bluetooth_connection_service_subscribe(&handle_bluetooth);
 }
 
 static void deinit(void) {
