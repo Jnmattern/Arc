@@ -20,7 +20,7 @@
 
 #define STEP_DISPLAY_INFO 0
 #define STEP_DISPLAY_CONFIG_APPLIED 100
-#define STEP_DISPLAY_BT_LOST 200
+#define STEP_DISPLAY_BT 200
 
 enum {
 	CONFIG_KEY_DATEORDER = 1852,
@@ -293,7 +293,7 @@ static void timeHandler(void *data) {
 			}
 			layer_set_hidden(text_layer_get_layer(textLayer), true);
 			centerTextLayer(date);
-			step = 0;
+			step = STEP_DISPLAY_INFO;
 			break;
 			
 		case 101:
@@ -315,7 +315,7 @@ static void timeHandler(void *data) {
 
 			layer_set_hidden(text_layer_get_layer(textLayer), true);
 			centerTextLayer(date);
-			step = 0;
+			step = STEP_DISPLAY_INFO;
 			break;
 			
 		case 201:
@@ -357,7 +357,7 @@ void updateConnection() {
 	if (!bluetoothConnected) {
 		vibes_enqueue_custom_pattern(pat);
 	}
-	step = 200;
+	step = STEP_DISPLAY_BT;
 	timeHandler(NULL);
 }
 
@@ -381,7 +381,7 @@ static inline void initRadiuses() {
 static void applyConfig() {
 	time_t t = time(NULL);
 	setDate(localtime(&t));
-	step = 100;
+	step = STEP_DISPLAY_CONFIG_APPLIED;
 	timeHandler(NULL);
 }
 
