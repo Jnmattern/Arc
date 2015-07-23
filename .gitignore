@@ -1,2 +1,17 @@
 
+# Ignore build generated files
+build
+
+.gitignore
+
+.lock-waf_darwin_build
+
+.lock-waf_linux2_build
+
+src/Arc_2.0.c.DYNSTACK
+
+*.psd
+
+Arc_2.0_banner.png
+
 *.backup
