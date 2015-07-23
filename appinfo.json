@@ -1,32 +1,40 @@
 {
   "uuid": "f2498724-6d94-4791-96bc-2bc182a0ffe6",
-  "shortName": "Arc 2.0",
-  "longName": "Arc 2.0",
+  "shortName": "Arc",
+  "longName": "Arc",
   "companyName": "Jnm",
   "versionCode": 1,
-  "versionLabel": "1.1.4",
+  "versionLabel": "3.0",
   "watchapp": {
     "watchface": true
   },
-  "capabilities": [ "configurable" ],
+  "capabilities": [
+    "configurable"
+  ],
   "appKeys": {
-	"dateorder":	1852,
-    "lang":			1853,
-	"backlight":	1854
+    "dateorder": 1852,
+    "lang": 1853,
+    "backlight": 1854,
+    "themecode": 1855
   },
   "resources": {
     "media": [
-	  {
-	  "menuIcon": true,
-	  "type": "png",
-	  "name": "IMAGE_MENU_ICON",
-	  "file": "images/menu_icon.png"
-	  },
+      {
+        "menuIcon": true,
+        "type": "png",
+        "name": "IMAGE_MENU_ICON",
+        "file": "images/menu_icon.png"
+      },
       {
         "type": "font",
         "name": "FONT_TIMEBURNER_20",
         "file": "fonts/timeburner_regular.ttf"
       }
-	]
-  }
+    ]
+  },
+  "targetPlatforms": [
+    "aplite",
+    "basalt"
+  ],
+  "sdkVersion": "3"
 }

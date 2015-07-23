@@ -1,11 +1,13 @@
 var dateorder = 0;
 var lang = 0;
 var backlight = 0;
+var themecode = "";
 
 function logVariables() {
 	console.log("	dateorder: " + dateorder);
 	console.log("	lang: " + lang);
 	console.log("	backlight: " + backlight);
+  console.log(" themecode: " + themecode);
 }
 
 Pebble.addEventListener("ready", function() {
@@ -26,27 +28,54 @@ Pebble.addEventListener("ready", function() {
 		backlight = 0;
 	}
 
-	logVariables();
-						
-	Pebble.sendAppMessage(JSON.parse('{"dateorder":'+dateorder+',"lang":'+lang+',"backlight":'+backlight+'}'));
+  themecode = localStorage.getItem("themecode");
+  if (!themecode) {
+    themecode = "c0fcf4ed";
+  }
 
+	logVariables();
+  
+  var message = '{"dateorder":'+dateorder+',"lang":'+lang+',"backlight":'+backlight+',"themecode":"'+themecode+'"}';
+  console.log("Sending message : " + message);
+	Pebble.sendAppMessage(JSON.parse(message));
 });
+
+
+function isWatchColorCapable() {
+  if (typeof Pebble.getActiveWatchInfo === "function") {
+    try {
+      if (Pebble.getActiveWatchInfo().platform != 'aplite') {
+        return true;
+      } else {
+        return false;
+      }
+    } catch(err) {
+      console.log('ERROR calling Pebble.getActiveWatchInfo() : ' + JSON.stringify(err));
+      // Assuming Pebble App 3.0
+      return true;
+    }
+  }
+  //return ((typeof Pebble.getActiveWatchInfo === "function") && Pebble.getActiveWatchInfo().platform!='aplite');
+}
+
 
 Pebble.addEventListener("showConfiguration", function(e) {
 	console.log("showConfiguration Event");
 
 	logVariables();
-						
-	Pebble.openURL("http://www.famillemattern.com/jnm/pebble/Arc/Arc_1.1.3.php?dateorder=" + dateorder +
-				   "&lang=" + lang + "&backlight=" + backlight);
+  
+  var url = "http://www.famillemattern.com/jnm/pebble/Arc/Arc_3.0.html?dateorder=" + dateorder +
+				   "&lang=" + lang + "&backlight=" + backlight + "&themecode=" + themecode + "&colorCapable=" + isWatchColorCapable();
+  console.log(url);
+	Pebble.openURL(url);
 });
 
 Pebble.addEventListener("webviewclosed", function(e) {
 	console.log("Configuration window closed");
 	console.log(e.type);
-	console.log(e.response);
+  console.log("Response: " + decodeURIComponent(e.response));
 
-	var configuration = JSON.parse(e.response);
+	var configuration = JSON.parse(decodeURIComponent(e.response));
 	Pebble.sendAppMessage(configuration);
 						
 	dateorder = configuration["dateorder"];
@@ -57,4 +86,7 @@ Pebble.addEventListener("webviewclosed", function(e) {
 
 	backlight = configuration["backlight"];
 	localStorage.setItem("backlight", backlight);
+  
+  themecode = configuration["themecode"];
+	localStorage.setItem("themecode", themecode);
 });
