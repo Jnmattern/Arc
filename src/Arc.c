@@ -84,7 +84,6 @@ enum {
 static char themeCodeText[20] = "c0fcf4ed";
 static GColor colorTheme[COLOR_NUM];
 
-
 /*\
 |*| DrawArc function thanks to Cameron MacFarland (http://forums.getpebble.com/profile/12561/Cameron%20MacFarland)
 \*/
@@ -203,28 +202,20 @@ static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thic
 }
 
 static void updateScreen(Layer *layer, GContext *ctx) {
-#ifdef PBL_COLOR
-	graphics_context_set_fill_color(ctx, colorTheme[COLOR_MINUTE]);
-#else
-	graphics_context_set_fill_color(ctx, GColorWhite);
-#endif
+  graphics_context_set_fill_color(ctx, colorTheme[COLOR_MINUTE]);
 	graphics_fill_circle(ctx, center, outerCircleOuterRadius);
 
-#ifdef PBL_COLOR
 	graphics_context_set_fill_color(ctx, colorTheme[COLOR_BACKGROUND]);
-#else
-	graphics_context_set_fill_color(ctx, GColorBlack);
-#endif
 	graphics_fill_circle(ctx, center, outerCircleInnerRadius);
 
-#ifdef PBL_COLOR
 	graphics_draw_arc(ctx, center, outerCircleOuterRadius+1, OUTER_CIRCLE_THICKNESS+2, min_a1, min_a2, colorTheme[COLOR_BACKGROUND]);
-	graphics_draw_arc(ctx, center, innerCircleOuterRadius, INNER_CIRCLE_THICKNESS, hour_a1, hour_a2, colorTheme[COLOR_HOUR]);
-#else
-	graphics_draw_arc(ctx, center, outerCircleOuterRadius+1, OUTER_CIRCLE_THICKNESS+2, min_a1, min_a2, GColorBlack);
-	graphics_draw_arc(ctx, center, innerCircleOuterRadius, INNER_CIRCLE_THICKNESS, hour_a1, hour_a2, GColorWhite);
-#endif
 
+	graphics_context_set_fill_color(ctx, colorTheme[COLOR_HOUR]);
+	graphics_fill_circle(ctx, center, innerCircleOuterRadius);
+	graphics_context_set_fill_color(ctx, colorTheme[COLOR_BACKGROUND]);
+	graphics_fill_circle(ctx, center, innerCircleOuterRadius-INNER_CIRCLE_THICKNESS);
+
+	graphics_draw_arc(ctx, center, innerCircleOuterRadius+1, INNER_CIRCLE_THICKNESS+1, hour_a2, hour_a1, colorTheme[COLOR_BACKGROUND]);
 }
 
 static void calcAngles(struct tm *t) {
@@ -243,7 +234,6 @@ void setDate(struct tm *t) {
 	} else {
 		snprintf(date, 10, "%s\n%d/%.2d", weekDay[curLang][t->tm_wday], t->tm_mday, t->tm_mon+1);
 	}
-	//text_layer_set_text(textLayer, date);
 }
 
 static void handleTick(struct tm *tick_time, TimeUnits units_changed) {
@@ -433,7 +423,11 @@ void decodeThemeCode(char *code) {
     colorTheme[i] = (GColor8){.argb=(uint8_t)hexStringToByte(code + 2*i)};
   }
 #else
-  // Do nothing on APLITE
+  // Static B&W on aplite
+  colorTheme[COLOR_BACKGROUND] = GColorBlack;
+  colorTheme[COLOR_MINUTE] = GColorWhite;
+  colorTheme[COLOR_HOUR] = GColorWhite;
+  colorTheme[COLOR_TEXT] = GColorWhite;
 #endif
 }
 
@@ -443,14 +437,9 @@ static void applyConfig() {
 	step = STEP_DISPLAY_CONFIG_APPLIED;
   
   decodeThemeCode(themeCodeText);
-  
-#ifdef PBL_COLOR
+
 	window_set_background_color(window, colorTheme[COLOR_BACKGROUND]);
   text_layer_set_text_color(textLayer, colorTheme[COLOR_TEXT]);
-#else
-	window_set_background_color(window, GColorBlack);
-  text_layer_set_text_color(textLayer, GColorWhite);
-#endif
 
 	layer_mark_dirty(layer);
 
@@ -574,11 +563,7 @@ static void init(void) {
 	app_message_init();
 
 	window = window_create();
-#ifdef PBL_COLOR
 	window_set_background_color(window, colorTheme[COLOR_BACKGROUND]);
-#else
-	window_set_background_color(window, GColorBlack);
-#endif
 	window_stack_push(window, false);
 
 	rootLayer = window_get_root_layer(window);
@@ -597,7 +582,7 @@ static void init(void) {
 	text_layer_set_text_alignment(textLayer, GTextAlignmentCenter);
 	text_layer_set_overflow_mode(textLayer, GTextOverflowModeWordWrap);
 	text_layer_set_background_color(textLayer, GColorClear);
-	text_layer_set_text_color(textLayer, GColorWhite);
+	text_layer_set_text_color(textLayer, colorTheme[COLOR_TEXT]);
 	text_layer_set_font(textLayer, font);
 	layer_set_hidden(text_layer_get_layer(textLayer), true);
 	layer_add_child(rootLayer, text_layer_get_layer(textLayer));
