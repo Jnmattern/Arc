@@ -1,7 +1,5 @@
 #include <pebble.h>
 
-#define OUTER_CIRCLE_THICKNESS 15
-#define INNER_CIRCLE_THICKNESS 15
 #define SPACE 5
 
 #define INFO_DURATION 1000
@@ -22,6 +20,28 @@
 #define STEP_DISPLAY_CONFIG_APPLIED 100
 #define STEP_DISPLAY_BT 200
 
+#if defined(PBL_RECT)
+
+#define WIDTH 144
+#define HEIGHT 168
+#define XCENTER 72
+#define YCENTER 84
+#define EXTERNAL_RADIUS (XCENTER-1)
+#define OUTER_CIRCLE_THICKNESS 15
+#define INNER_CIRCLE_THICKNESS 15
+
+#elif defined(PBL_ROUND)
+
+#define WIDTH 180
+#define HEIGHT 180
+#define XCENTER 90
+#define YCENTER 90
+#define EXTERNAL_RADIUS (XCENTER+1)
+#define OUTER_CIRCLE_THICKNESS 18
+#define INNER_CIRCLE_THICKNESS 15
+
+#endif
+
 enum {
 	CONFIG_KEY_DATEORDER = 1852,
 	CONFIG_KEY_LANG = 1853,
@@ -34,7 +54,7 @@ static Window *window;
 static Layer *rootLayer;
 static Layer *layer;
 
-static int outerCircleOuterRadius = 71, outerCircleInnerRadius;
+static int outerCircleOuterRadius = EXTERNAL_RADIUS, outerCircleInnerRadius;
 static int innerCircleOuterRadius, innerCircleInnerRadius ;
 
 static int angle_90 = TRIG_MAX_ANGLE / 4;
@@ -52,7 +72,7 @@ static GFont font;
 
 static int step = STEP_DISPLAY_INFO;
 
-static const GPoint center = { 72, 84 };
+static const GPoint center = { XCENTER, YCENTER };
 
 // Days of the week in all languages
 static int curLang = LANG_ENGLISH;
@@ -87,7 +107,7 @@ static GColor colorTheme[COLOR_NUM];
 /*\
 |*| DrawArc function thanks to Cameron MacFarland (http://forums.getpebble.com/profile/12561/Cameron%20MacFarland)
 \*/
-static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thickness, int start_angle, int end_angle, GColor c) {
+static void my_graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thickness, int start_angle, int end_angle, GColor c) {
 	int32_t xmin = 65535000, xmax = -65535000, ymin = 65535000, ymax = -65535000;
 	int32_t cosStart, sinStart, cosEnd, sinEnd;
 	int32_t r, t;
@@ -101,8 +121,8 @@ static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thic
 	if (end_angle == 0) end_angle = TRIG_MAX_ANGLE;
 	
 	if (start_angle > end_angle) {
-		graphics_draw_arc(ctx, center, radius, thickness, start_angle, TRIG_MAX_ANGLE, c);
-		graphics_draw_arc(ctx, center, radius, thickness, 0, end_angle, c);
+		my_graphics_draw_arc(ctx, center, radius, thickness, start_angle, TRIG_MAX_ANGLE, c);
+		my_graphics_draw_arc(ctx, center, radius, thickness, 0, end_angle, c);
 	} else {
 		// Calculate bounding box for the arc to be drawn
 		cosStart = cos_lookup(start_angle);
@@ -208,14 +228,14 @@ static void updateScreen(Layer *layer, GContext *ctx) {
 	graphics_context_set_fill_color(ctx, colorTheme[COLOR_BACKGROUND]);
 	graphics_fill_circle(ctx, center, outerCircleInnerRadius);
 
-	graphics_draw_arc(ctx, center, outerCircleOuterRadius+1, OUTER_CIRCLE_THICKNESS+2, min_a1, min_a2, colorTheme[COLOR_BACKGROUND]);
+	my_graphics_draw_arc(ctx, center, outerCircleOuterRadius+1, OUTER_CIRCLE_THICKNESS+2, min_a1, min_a2, colorTheme[COLOR_BACKGROUND]);
 
 	graphics_context_set_fill_color(ctx, colorTheme[COLOR_HOUR]);
 	graphics_fill_circle(ctx, center, innerCircleOuterRadius);
 	graphics_context_set_fill_color(ctx, colorTheme[COLOR_BACKGROUND]);
 	graphics_fill_circle(ctx, center, innerCircleOuterRadius-INNER_CIRCLE_THICKNESS);
 
-	graphics_draw_arc(ctx, center, innerCircleOuterRadius+1, INNER_CIRCLE_THICKNESS+1, hour_a2, hour_a1, colorTheme[COLOR_BACKGROUND]);
+	my_graphics_draw_arc(ctx, center, innerCircleOuterRadius+1, INNER_CIRCLE_THICKNESS+1, hour_a2, hour_a1, colorTheme[COLOR_BACKGROUND]);
 }
 
 static void calcAngles(struct tm *t) {
@@ -255,7 +275,7 @@ static void centerTextLayer(const char *text) {
 	}
 
 	size = graphics_text_layout_get_content_size(text, font, textFrame, GTextOverflowModeWordWrap, GTextAlignmentCenter);
-	newFrame.origin.y = 84-size.h/2;
+	newFrame.origin.y = YCENTER-size.h/2;
 	layer_set_frame(text_layer_get_layer(textLayer), newFrame);
 	text_layer_set_text(textLayer, text);
 }
@@ -571,13 +591,13 @@ static void init(void) {
 	t = time(NULL);
 	tm = localtime(&t);
 	
-	layer = layer_create(GRect(0, 0, 144, 168));
+	layer = layer_create(GRect(0, 0, WIDTH, HEIGHT));
 	layer_set_update_proc(layer, updateScreen);
 	layer_add_child(rootLayer, layer);
 	
 	font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIMEBURNER_20));
 	
-	textFrame = GRect(72-innerCircleInnerRadius, 60, 2*innerCircleInnerRadius, 60);
+	textFrame = GRect(XCENTER-innerCircleInnerRadius, YCENTER-24, 2*innerCircleInnerRadius, 60);
 	textLayer = text_layer_create(textFrame);
 	text_layer_set_text_alignment(textLayer, GTextAlignmentCenter);
 	text_layer_set_overflow_mode(textLayer, GTextOverflowModeWordWrap);
